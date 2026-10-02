@@ -1,0 +1,50 @@
+mainmenu "IMX6ULL SDK 配置"
+
+menu "板级选择"
+choice
+	prompt "目标板"
+	default SDK_BOARD_ALIENTEK_ALPHA_EMMC
+
+	config SDK_BOARD_ALIENTEK_ALPHA_EMMC
+		bool "正点原子 Alpha (i.MX6ULL, TF/EMMC)"
+endchoice
+
+config SDK_BOARD_NAME
+	string
+	default "imx6ull-alientek-alpha-emmc" if SDK_BOARD_ALIENTEK_ALPHA_EMMC
+endmenu
+
+menu "工具链"
+config SDK_CROSS_PREFIX
+	string "交叉工具链前缀（相对 SDK 根目录）"
+	default "tools/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+	help
+	  指到 bin/ 下的工具前缀（含结尾连字符）。
+endmenu
+
+menu "构建组件"
+config SDK_BUILD_UBOOT
+	bool "构建 U-Boot"
+	default y
+config SDK_BUILD_KERNEL
+	bool "构建 Linux 内核"
+	default y
+config SDK_BUILD_ROOTFS
+	bool "构建 Buildroot rootfs"
+	default y
+config SDK_INSTALL_MODULES
+	bool "安装内核模块到 rootfs"
+	default y
+config SDK_MAKE_SDIMAGE
+	bool "生成 sdcard.img（genimage 合成）"
+	default y
+config SDK_JOBS
+	int "并行编译任务数"
+	default 18
+endmenu
+
+menu "内核"
+config SDK_KERNEL_DTB
+	string "设备树名（不含 .dtb 后缀）"
+	default "imx6ull-alientek-emmc"
+endmenu
