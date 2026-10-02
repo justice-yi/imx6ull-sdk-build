@@ -1,0 +1,48 @@
+#!/bin/sh
+# S41wifi: RTL8733BU USB WiFi 起网（WPA2 STA + DHCP）
+# 排在 S40network 之后；任何一步失败都不阻断启动——没插模块/没配网时静默放行
+DAEMON=/usr/sbin/wpa_supplicant
+CONF=/etc/wpa_supplicant.conf
+IFACE=wlan0
+
+wait_iface() {
+	i=0
+	while [ $i -lt 10 ]; do
+		[ -d "/sys/class/net/$IFACE" ] && return 0
+		sleep 1
+		i=$((i + 1))
+	done
+	return 1
+}
+
+start() {
+	# 1) 载驱动：优先 modprobe（depmod 已建索引），失败退绝对路径 insmod
+	if ! grep -q '^8733bu ' /proc/modules 2>/dev/null; then
+		modprobe 8733bu 2>/dev/null \
+			|| insmod /lib/modules/8733bu.ko 2>/dev/null \
+			|| insmod /lib/modules/*/extra/8733bu.ko 2>/dev/null
+	fi
+	wait_iface || { echo "[wifi] $IFACE 未出现（模块没插或驱动没起），跳过"; exit 0; }
+
+	# 2) 配置检查：占位 SSID 未改时明确提示，不糊弄着起
+	[ -f "$CONF" ] || { echo "[wifi] 缺 $CONF，跳过"; exit 0; }
+	grep -q '你的SSID' "$CONF" && { echo "[wifi] $CONF 还是占位配置，先改 SSID/PSK"; exit 0; }
+
+	# 3) 关联 AP 并取地址（-b：拿不到租约也转后台继续试，不卡启动脚本）
+	$DAEMON -B -D nl80211 -i $IFACE -c "$CONF" -P /run/wpa_supplicant-$IFACE.pid
+	udhcpc -b -i $IFACE -p /run/udhcpc-$IFACE.pid
+	echo "[wifi] $IFACE 已起，等关联+DHCP（iw dev / wpa_cli status 查看）"
+}
+
+stop() {
+	kill "$(cat /run/udhcpc-$IFACE.pid 2>/dev/null)" 2>/dev/null
+	kill "$(cat /run/wpa_supplicant-$IFACE.pid 2>/dev/null)" 2>/dev/null
+	rmmod 8733bu 2>/dev/null
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart) stop; sleep 1; start ;;
+	*) echo "用法: $0 {start|stop|restart}"; exit 1 ;;
+esac

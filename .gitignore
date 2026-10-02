@@ -1,0 +1,2 @@
+# rootfs-overlay 里的驱动 ko 由 drivers_build_system 的 install -l 落盘（二进制产物，不入库）
+board/imx6ull-alientek-alpha-emmc/rootfs-overlay/lib/modules/

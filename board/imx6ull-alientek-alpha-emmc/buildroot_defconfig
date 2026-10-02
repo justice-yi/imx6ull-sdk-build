@@ -22,6 +22,13 @@ BR2_ROOTFS_POST_BUILD_SCRIPT="@BOARD_DIR@/post-build.sh"
 # 包：首跑最小集（busybox 自带），以后要加包在这里或 menuconfig 加
 # BR2_PACKAGE_DROPBEAR=y 之类，按需开启
 
+# WiFi（RTL8733BU）：关联+取址走 nl80211（自动带 libnl），wpa_cli 板上排查用。
+# 注意：包配置只认本文件——output/rootfs 里 menuconfig 的改动会被 make rootfs
+# 的 defconfig 重载冲掉（SDK 编排 Makefile rootfs 目标固定重跑 defconfig）
+BR2_PACKAGE_WPA_SUPPLICANT=y
+BR2_PACKAGE_WPA_SUPPLICANT_NL80211=y
+BR2_PACKAGE_WPA_SUPPLICANT_CLI=y
+
 # host 工具：genimage 合成镜像、mkimage 打 boot.scr
 BR2_PACKAGE_HOST_GENIMAGE=y
 BR2_PACKAGE_HOST_UBOOT_TOOLS=y
