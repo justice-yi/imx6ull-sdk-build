@@ -13,7 +13,7 @@ KC        := scripts/kconfig
 -include .config                       # 载入 menuconfig 结果
 quote    = $(subst ",,$(1))
 CROSS    := $(SDK_ROOT)/$(call quote,$(CONFIG_SDK_CROSS_PREFIX))
-TC_ROOT  := $(patsubst %/,%,$(dir $(CROSS)))..        # 工具链根目录
+TC_ROOT  := $(dir $(dir $(CROSS)))# 工具链根目录
 JOBS     := $(CONFIG_SDK_JOBS)
 DTB      := $(call quote,$(CONFIG_SDK_KERNEL_DTB))
 # 板级目录：有 .config 用其值；defconfig 首跑（还没有 .config）时落到默认板
