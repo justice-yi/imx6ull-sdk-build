@@ -33,4 +33,4 @@ BR2_TARGET_ROOTFS_EXT2_SIZE="128M"
 # 内核和 uboot 由 SDK 统一编排，这里明确关闭
 # BR2_LINUX_KERNEL is not set
 # BR2_TARGET_UBOOT is not set
-BR2_PRIMARY_SITE="https://mirrors.tuna.tsinghua.edu.cn/buildroot
+BR2_PRIMARY_SITE="https://mirrors.tuna.tsinghua.edu.cn/buildroot"
