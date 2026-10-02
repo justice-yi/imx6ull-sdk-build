@@ -1,0 +1,30 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# IMX6ULL SDK 配置
+#
+
+#
+# 板级选择
+#
+CONFIG_SDK_BOARD_ALIENTEK_ALPHA_EMMC=y
+CONFIG_SDK_BOARD_NAME="imx6ull-alientek-alpha-emmc"
+
+#
+# 工具链
+#
+CONFIG_SDK_CROSS_PREFIX="tools/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+
+#
+# 构建组件
+#
+CONFIG_SDK_BUILD_UBOOT=y
+CONFIG_SDK_BUILD_KERNEL=y
+CONFIG_SDK_BUILD_ROOTFS=y
+CONFIG_SDK_INSTALL_MODULES=y
+CONFIG_SDK_MAKE_SDIMAGE=y
+CONFIG_SDK_JOBS=18
+
+#
+# 内核
+#
+CONFIG_SDK_KERNEL_DTB="imx6ull-alientek-emmc"

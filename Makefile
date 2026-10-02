@@ -16,7 +16,12 @@ CROSS    := $(SDK_ROOT)/$(call quote,$(CONFIG_SDK_CROSS_PREFIX))
 TC_ROOT  := $(patsubst %/,%,$(dir $(CROSS)))..        # 工具链根目录
 JOBS     := $(CONFIG_SDK_JOBS)
 DTB      := $(call quote,$(CONFIG_SDK_KERNEL_DTB))
-BOARD    := board/$(call quote,$(CONFIG_SDK_BOARD_NAME))
+# 板级目录：有 .config 用其值；defconfig 首跑（还没有 .config）时落到默认板
+BOARD_NAME := $(call quote,$(CONFIG_SDK_BOARD_NAME))
+ifeq ($(strip $(BOARD_NAME)),)
+BOARD_NAME := imx6ull-alientek-alpha-emmc
+endif
+BOARD    := board/$(BOARD_NAME)
 UBOOT_DEF   := mx6ull_alientek_emmc_defconfig
 KERNEL_DEF  := imx6ull-alientek-emmc_defconfig
 
@@ -33,9 +38,11 @@ endif
 	@mkdir -p $(OUT)/images $(OUT)/modules
 
 # ---------- SDK 自身配置（kconfig） ----------
-$(KC)/conf $(KC)/mconf:
-	$(MAKE) -C $(KC)
+$(KC)/conf:
+	$(MAKE) -C $(KC) conf
 
+$(KC)/mconf:
+	$(MAKE) -C $(KC) mconf
 menuconfig: $(KC)/mconf
 	$(KC)/mconf Kconfig
 	@echo "配置已存到 .config，可 make savedefconfig 固化到板级目录"

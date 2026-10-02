@@ -17,7 +17,7 @@ endmenu
 menu "工具链"
 config SDK_CROSS_PREFIX
 	string "交叉工具链前缀（相对 SDK 根目录）"
-	default "tools/gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-"
+	default "tools/gcc-11.3-bootlin/bin/arm-buildroot-linux-gnueabihf-"
 	help
 	  指到 bin/ 下的工具前缀（含结尾连字符）。
 endmenu

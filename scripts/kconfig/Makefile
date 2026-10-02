@@ -1,25 +1,36 @@
-# 精简 kconfig 构建：make → conf + mconf
+# kconfig 精简构建（适配 buildroot 2022.11 老式 kconfig，2026-10-02 实测通过）
+# 关键：zconf.tab.c_shipped 把 util/confdata/expr/symbol/menu 等 .c 全部
+# include 成单一编译单元，所以只需 conf.o + zconf.tab.o 两个对象；
+# 词法文件用预生成的 zconf.lex.c_shipped，无需 flex/bison。
 HOSTCC ?= gcc
-CFLAGS  = -O2 -I. -I./lxdialog -DCONFIG_=\"CONFIG_\"
-LXD     = lxdialog/checklist.o lxdialog/inputbox.o lxdialog/menubox.o \
-          lxdialog/textbox.o lxdialog/util.o lxdialog/yesno.o
-COMMON  = confdata.o expr.o symbol.o menu.o util.o preprocess.o
+CFLAGS  = -O2 -I. -DCONFIG_=\"CONFIG_\" -include limits.h -include ctype.h -include errno.h -DLOCALE
+CURSES  = -DCURSES_LOC='<ncursesw/curses.h>' 
+LXD     = lxdialog/checklist.o lxdialog/util.o lxdialog/inputbox.o \
+          lxdialog/textbox.o lxdialog/yesno.o lxdialog/menubox.o
 
-conf: conf.o $(COMMON) lexer.o parser.o
+conf: conf.o zconf.tab.o
 	$(HOSTCC) $^ -o $@
 
-mconf: mconf.o $(COMMON) lexer.o parser.o $(LXD)
-	$(HOSTCC) $^ -o $@ -lncursesw -lmenuw -lpanelw
+mconf: mconf.o zconf.tab.o $(LXD)
+	$(HOSTCC) $^ -o $@ -lncursesw -lmenuw -lpanelw   # 原来是 -lncurses -lmenu -lpanel
+
+zconf.tab.c: zconf.tab.c_shipped
+	cat $< > $@
+
+zconf.lex.c: zconf.lex.c_shipped
+	cat $< > $@
+
+zconf.tab.o: zconf.tab.c zconf.lex.c
+	$(HOSTCC) $(CFLAGS) -c $< -o $@
 
 %.o: %.c
 	$(HOSTCC) $(CFLAGS) -c $< -o $@
 
-# flex/bison 生成词法/语法分析器（buildroot 2022.11 命名为 lexer.l / parser.y）
-lexer.o: lexer.l parser.y
-	flex -o lex.zconf.c lexer.l
-	bison -l -o parser.tab.c parser.y
-	$(HOSTCC) $(CFLAGS) -c lex.zconf.c -o lexer.o -x c
-	$(HOSTCC) $(CFLAGS) -I. -c parser.tab.c -o parser.o
+mconf.o: mconf.c
+	$(HOSTCC) $(CFLAGS) $(CURSES) -c $< -o $@
+
+lxdialog/%.o: lxdialog/%.c
+	$(HOSTCC) $(CFLAGS) $(CURSES) -c $< -o $@
 
 clean:
-	rm -f *.o lxdialog/*.o conf mconf lex.zconf.c parser.tab.c parser.tab.h
+	rm -f *.o lxdialog/*.o conf mconf zconf.tab.c zconf.lex.c
