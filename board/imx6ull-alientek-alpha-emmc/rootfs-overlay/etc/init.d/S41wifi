@@ -16,6 +16,10 @@ wait_iface() {
 }
 
 start() {
+	# 0) USB 主机控制器：chipidea 在内核里是 =m，busybox init 无 udev 不会自动加载，
+	#    不拉起它 WiFi 模块插上无任何反应（modprobe 自动带上 usbmisc/ci_hdrc 等依赖链）
+	modprobe ci_hdrc_imx 2>/dev/null
+
 	# 1) 载驱动：优先 modprobe（depmod 已建索引），失败退绝对路径 insmod
 	if ! grep -q '^8733bu ' /proc/modules 2>/dev/null; then
 		modprobe 8733bu 2>/dev/null \
