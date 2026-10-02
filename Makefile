@@ -98,7 +98,7 @@ ifeq ($(CONFIG_SDK_MAKE_SDIMAGE),y)
 	rm -rf $(OUT)/genimage.tmp
 	$(OUT)/rootfs/host/bin/genimage \
 		--rootpath $(OUT)/rootfs/target \
-		--tmproot $(OUT)/genimage.tmp \
+		--tmppath $(OUT)/genimage.tmp \
 		--inputpath $(IMAGES) \
 		--outputpath $(IMAGES) \
 		--config $(BOARD)/genimage.cfg
