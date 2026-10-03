@@ -54,8 +54,8 @@ sudo dd if=output/images/sdcard.img of=/dev/sdX bs=4M conv=fsync status=progress
 
 上板：TF 卡启动档位，串口 115200（UART1）。U-Boot 自动执行 boot.scr，免手动环境变量。
 
-同一镜像可烧 eMMC 启动：在 TF 起的系统里 `dd if=sdcard.img of=/dev/mmcblk0 bs=4M conv=fsync`
-（此板 Linux 枚举 eMMC=mmcblk0、TF=mmcblk1，boot.scr 已按启动介质自动分派 root），然后拨码切 eMMC 档。
+同一镜像可烧 eMMC 启动：在 TF 起的系统里 `dd if=sdcard.img of=/dev/mmcblk1 bs=4M conv=fsync`
+（实测 mmcblk 与 U-Boot 设备号恒等：TF=mmcblk0、eMMC=mmcblk1；boot.scr 按 mmcdev 拼 root，双介质通用），然后拨码切 eMMC 档。
 
 日常增量：内核/U-Boot 改动可只 `dd` 对应产物（uboot 段 `bs=512 seek=2`），或挂载卡分区替换 zImage/dtb。
 
