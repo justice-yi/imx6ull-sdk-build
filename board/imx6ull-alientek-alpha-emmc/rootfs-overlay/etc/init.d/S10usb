@@ -1,0 +1,12 @@
+#!/bin/sh
+# S10usb: 拉起 chipidea USB 控制器（通用基础设施，先于一切 USB 使用者）
+# 内核 CHIPIDEA/CHIPIDEA_IMX 为 =m，busybox init 无 udev 不自动加载；
+# usbotg1(OTG)/usbotg2(HOST) 两个实例都由 ci_hdrc_imx 按 dts 绑定，
+# 依赖链（usbmisc/ci_hdrc/ulpi/udc-core）由 modprobe 经 modules.dep 自理。
+# 注：USB_STORAGE/EHCI_HCD/MXS_PHY 已 =y 内建，无需在此处理。
+
+case "$1" in
+	start) modprobe ci_hdrc_imx 2>/dev/null ;;
+	stop) modprobe -r ci_hdrc_imx 2>/dev/null ;;
+	*) echo "用法: $0 {start|stop}"; exit 1 ;;
+esac
