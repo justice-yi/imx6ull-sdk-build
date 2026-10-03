@@ -3,6 +3,8 @@
 #   make menuconfig   配置 SDK
 #   make              全量构建（uboot→kernel→rootfs→sdcard.img）
 #   make uboot / kernel / rootfs / images   单独构建某环
+#   make X-menuconfig / X-savedefconfig / X-defconfig
+#                     组件配置流，X=uboot|kernel|rootfs（详见文件内注释节）
 #   make clean        清空 output/
 # ============================================================
 SDK_ROOT  := $(abspath ..)
@@ -26,7 +28,10 @@ UBOOT_DEF   := mx6ull_alientek_emmc_defconfig
 KERNEL_DEF  := imx6ull-alientek-emmc_defconfig
 
 .PHONY: all menuconfig defconfig oldconfig savedefconfig \
-        check uboot kernel rootfs images clean
+        check uboot kernel rootfs images clean \
+        uboot-menuconfig uboot-savedefconfig uboot-defconfig \
+        kernel-menuconfig kernel-savedefconfig kernel-defconfig \
+        rootfs-menuconfig rootfs-savedefconfig rootfs-defconfig
 
 all: check uboot kernel rootfs images
 
@@ -59,7 +64,7 @@ savedefconfig: $(KC)/conf
 # ---------- U-Boot ----------
 uboot:
 ifeq ($(CONFIG_SDK_BUILD_UBOOT),y)
-	$(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) $(UBOOT_DEF)
+	@test -f $(OUT)/uboot/.config || $(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) $(UBOOT_DEF)
 	$(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) -j$(JOBS)
 	cp $(OUT)/uboot/u-boot-dtb.imx $(IMAGES)/
 endif
@@ -67,7 +72,7 @@ endif
 # ---------- 内核 ----------
 kernel:
 ifeq ($(CONFIG_SDK_BUILD_KERNEL),y)
-	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) $(KERNEL_DEF)
+	@test -f $(OUT)/kernel/.config || $(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) $(KERNEL_DEF)
 	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) -j$(JOBS) \
 		zImage dtbs modules
 ifeq ($(CONFIG_SDK_INSTALL_MODULES),y)
@@ -85,10 +90,47 @@ $(OUT)/rootfs/defconfig: $(BOARD)/buildroot_defconfig
 
 rootfs: $(OUT)/rootfs/defconfig
 ifeq ($(CONFIG_SDK_BUILD_ROOTFS),y)
-	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs BR2_DEFCONFIG=$(OUT)/rootfs/defconfig defconfig
+	@test -f $(OUT)/rootfs/.config || $(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs BR2_DEFCONFIG=$(OUT)/rootfs/defconfig defconfig
 	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs SDK_MODULES_DIR=$(OUT)/modules
 	cp $(OUT)/rootfs/images/rootfs.ext4 $(IMAGES)/
 endif
+
+# ---------- 组件配置流（X = uboot / kernel / rootfs）----------
+#   X-menuconfig     直改 output/X/.config（构建目标已不重灌，改动直接生效）
+#   X-savedefconfig  固化回源 defconfig（kernel/uboot 从 O= 目录通用名搬回；
+#                    buildroot 写 BR2_DEFCONFIG 登记的生成文件，再反向还原
+#                    @SDK_TOOLS@/@BOARD_DIR@ 占位符后落回 board 源文件）
+#   X-defconfig      强制重灌（手改 defconfig 源文件后的显式生效动作）
+uboot-menuconfig:
+	$(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) menuconfig
+
+uboot-savedefconfig:
+	$(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) savedefconfig
+	cp $(OUT)/uboot/defconfig $(SDK_ROOT)/uboot/configs/$(UBOOT_DEF)
+
+uboot-defconfig:
+	$(MAKE) -C $(SDK_ROOT)/uboot O=$(OUT)/uboot CROSS_COMPILE=$(CROSS) $(UBOOT_DEF)
+
+kernel-menuconfig:
+	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) menuconfig
+
+kernel-savedefconfig:
+	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) savedefconfig
+	cp $(OUT)/kernel/defconfig $(SDK_ROOT)/kernel/arch/arm/configs/$(KERNEL_DEF)
+
+kernel-defconfig:
+	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) $(KERNEL_DEF)
+
+rootfs-menuconfig:
+	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs menuconfig
+
+rootfs-savedefconfig:
+	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs savedefconfig
+	sed -e 's|$(TC_ROOT)|@SDK_TOOLS@|g' -e 's|$(realpath $(BOARD))|@BOARD_DIR@|g' \
+		$(OUT)/rootfs/defconfig > $(BOARD)/buildroot_defconfig
+
+rootfs-defconfig:
+	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs BR2_DEFCONFIG=$(OUT)/rootfs/defconfig defconfig
 
 # ---------- 合成 sdcard.img ----------
 images:

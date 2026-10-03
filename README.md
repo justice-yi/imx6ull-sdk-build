@@ -70,6 +70,9 @@ git add -A && git commit -m "..." && git push origin master
 
 更新整个 SDK：`repo sync`。
 
+组件配置（X = kernel / uboot / rootfs）：`make X-menuconfig` 直改（构建不会被冲）→
+`make X-savedefconfig` 固化回源 defconfig；手改 defconfig 源文件后 `make X-defconfig` 强制重灌。
+
 ## 已知事项
 
 - **以太网不可用**：设备树 PHY 配置与该板不符，待改 `kernel/arch/arm/boot/dts/imx6ull-alientek-emmc.dts` 的 FEC 节点；
