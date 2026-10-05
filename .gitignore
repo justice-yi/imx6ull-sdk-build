@@ -1,2 +1,7 @@
 # rootfs-overlay 里的驱动 ko 由 drivers_build_system 的 install -l 落盘（二进制产物，不入库）
 board/imx6ull-alientek-alpha-emmc/rootfs-overlay/lib/modules/
+board/imx6ull-alientek-alpha-emmc/rootfs-overlay/usr/sbin/ota-agent
+
+# 源目录里的试编译产物
+board/imx6ull-alientek-alpha-emmc/ota-agent/ota-agent
+board/imx6ull-alientek-alpha-emmc/initramfs/bin/busybox

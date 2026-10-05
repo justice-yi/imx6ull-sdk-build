@@ -1,0 +1,28 @@
+#!/bin/sh
+# S42ota-agent: 板端烧录代理 daemon 开机自启（服务模式 :8080）
+# PC flashtool 为 HTTP 客户端连接本服务：体检/勾选推送/一键烧录全部 PC 发起。
+# 排在 S41wifi 之后（网络起来即可服务；/data 未挂时 daemon 不退出，逐请求自行恢复）。
+# 前台调试: OTA_AGENT_FG=1 ota-agent daemon
+
+BIN=/usr/sbin/ota-agent
+PIDF=/run/ota-agent.pid
+
+case "$1" in
+	start)
+		[ -x "$BIN" ] || { echo "[ota] 缺 $BIN，跳过"; exit 0; }
+		if [ -f "$PIDF" ] && kill -0 "$(cat $PIDF)" 2>/dev/null; then
+			echo "[ota] 已在跑（pid $(cat $PIDF)）"
+			exit 0
+		fi
+		"$BIN" daemon
+		echo "[ota] daemon 已起 :8080"
+		;;
+	stop)
+		[ -f "$PIDF" ] && kill "$(cat $PIDF)" 2>/dev/null
+		rm -f "$PIDF"
+		;;
+	restart)
+		"$0" stop; sleep 1; "$0" start
+		;;
+	*) echo "用法: $0 {start|stop|restart}"; exit 1 ;;
+esac
