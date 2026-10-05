@@ -1,0 +1,31 @@
+#!/bin/sh
+# S08firstboot: 把 data(p8) 扩满整盘（fs 镜像里已带，无需 mkfs）
+# 三条硬教训（2026-10-04 板上实测）：
+#  1) S08 时 root(squashfs) 和 /data 已挂载 → sfdisk 自检"disk in use"拒写，
+#     必须 --no-reread --force；内核视图更新交给 partx -u（BLKPG 在线扩，
+#     挂载中允许——sfdisk 的 BLKRRPART 重读对在用盘会 EBUSY）
+#  2) MBR 逻辑分区住 extended(p4) 内：必须先扩 p4 容器，p8 才扩得动，
+#     否则被容器顶死成 0 字节的静默假成功
+#  3) start 从 sysfs 读出来写死——不赌 ",+" 对 start 的默认值语义，
+#     增长型改表（start 不变、只扩尾）不可能破坏数据
+# 幂等：按实际尺寸判断（p8 已到盘尾就跳过），不依赖 /misc/provisioned——
+# 旧板遗留的标志文件不会挡住本次修复。
+DEV=$(findfs LABEL=data) || exit 0
+DISK=${DEV%p?}			# 整盘设备
+BASE=${DISK#/dev/}		# sysfs 名（mmcblk0）
+disk_sec=$(cat /sys/block/$BASE/size)
+p8_sec=$(cat /sys/block/$BASE/${DEV##*/}/size)
+
+if [ $((p8_sec + 4096)) -ge "$disk_sec" ]; then	# 已到盘尾(留2M余量)
+	[ -e /misc/provisioned ] || touch /misc/provisioned
+	exit 0
+fi
+
+s4=$(cat /sys/block/$BASE/${DISK#/dev/}p4/start)
+s8=$(cat /sys/block/$BASE/${DEV##*/}/start)
+echo "start=$s4, +" | sfdisk --no-reread --force -N 4 "$DISK"	# ① 扩容器到盘尾
+echo "start=$s8, +" | sfdisk --no-reread --force -N 8 "$DISK"	# ② 扩 p8 到容器尾
+partx -u "$DISK"						# ③ 在线刷新内核分区尺寸
+resize2fs "$DEV"						# ④ ext4 在线扩容
+touch /misc/provisioned
+echo "[firstboot] data 已扩满: $(df -h "$DEV" | tail -1)"
