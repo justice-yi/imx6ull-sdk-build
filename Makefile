@@ -1,7 +1,7 @@
 # ============================================================
 # IMX6ULL SDK 顶层编排 Makefile —— 在 build/ 下运行
 #   make menuconfig   配置 SDK
-#   make              全量构建（uboot→kernel→rootfs→sdcard.img）
+#   make              全量构建（uboot→kernel→rootfs→board.img）
 #   make uboot / kernel / rootfs / images   单独构建某环
 #   make X-menuconfig / X-savedefconfig / X-defconfig
 #                     组件配置流，X=uboot|kernel|rootfs（详见文件内注释节）
@@ -69,10 +69,15 @@ ifeq ($(CONFIG_SDK_BUILD_UBOOT),y)
 	cp $(OUT)/uboot/u-boot-dtb.imx $(IMAGES)/
 endif
 
+# 板级构建片段：board/<板>/*.mk 自动加载（板级特性自治，本 Makefile 只提供
+# KERNEL_PRE_HOOKS 通用钩子位，自身不感知任何具体特性）
+include $(wildcard $(BOARD)/*.mk)
+
 # ---------- 内核 ----------
 kernel:
 ifeq ($(CONFIG_SDK_BUILD_KERNEL),y)
 	@test -f $(OUT)/kernel/.config || $(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) $(KERNEL_DEF)
+	$(if $(KERNEL_PRE_HOOKS),$(MAKE) $(KERNEL_PRE_HOOKS))
 	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) -j$(JOBS) \
 		zImage dtbs modules
 ifeq ($(CONFIG_SDK_INSTALL_MODULES),y)
@@ -93,6 +98,7 @@ ifeq ($(CONFIG_SDK_BUILD_ROOTFS),y)
 	@test -f $(OUT)/rootfs/.config || $(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs BR2_DEFCONFIG=$(OUT)/rootfs/defconfig defconfig
 	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs SDK_MODULES_DIR=$(OUT)/modules
 	cp $(OUT)/rootfs/images/rootfs.ext4 $(IMAGES)/
+	cp -f $(OUT)/rootfs/images/rootfs.squashfs $(IMAGES)/
 endif
 
 # ---------- 组件配置流（X = uboot / kernel / rootfs）----------
@@ -114,8 +120,11 @@ uboot-defconfig:
 kernel-menuconfig:
 	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) menuconfig
 
+# 注：CONFIG_INITRAMFS_SOURCE 由板级片段（initramfs.mk）构建时动态注入，
+# 固化前剔除，绝对路径永不落入源 defconfig
 kernel-savedefconfig:
 	$(MAKE) -C $(SDK_ROOT)/kernel O=$(OUT)/kernel ARCH=arm CROSS_COMPILE=$(CROSS) savedefconfig
+	sed -i '/^CONFIG_INITRAMFS_SOURCE=/d' $(OUT)/kernel/defconfig
 	cp $(OUT)/kernel/defconfig $(SDK_ROOT)/kernel/arch/arm/configs/$(KERNEL_DEF)
 
 kernel-defconfig:
@@ -129,22 +138,15 @@ rootfs-savedefconfig:
 	sed -e 's|$(TC_ROOT)|@SDK_TOOLS@|g' -e 's|$(realpath $(BOARD))|@BOARD_DIR@|g' \
 		$(OUT)/rootfs/defconfig > $(BOARD)/buildroot_defconfig
 
-rootfs-defconfig:
+rootfs-defconfig: $(OUT)/rootfs/defconfig
 	$(MAKE) -C $(SDK_ROOT)/buildroot O=$(OUT)/rootfs BR2_DEFCONFIG=$(OUT)/rootfs/defconfig defconfig
 
-# ---------- 合成 sdcard.img ----------
+# ---------- 合成 board.img（自研 mk-image.sh + layout.csv，genimage 退役）----------
 images:
 ifeq ($(CONFIG_SDK_MAKE_SDIMAGE),y)
 	$(OUT)/rootfs/host/bin/mkimage -A arm -O linux -T script -C none \
 		-d $(BOARD)/boot.cmd $(IMAGES)/boot.scr
-	rm -rf $(OUT)/genimage.tmp
-	$(OUT)/rootfs/host/bin/genimage \
-		--rootpath $(OUT)/rootfs/target \
-		--tmppath $(OUT)/genimage.tmp \
-		--inputpath $(IMAGES) \
-		--outputpath $(IMAGES) \
-		--config $(BOARD)/genimage.cfg
-	@echo "==== 完成: $(IMAGES)/sdcard.img ===="
+	scripts/mk-image.sh $(BOARD)/layout.csv $(IMAGES)
 endif
 
 clean:

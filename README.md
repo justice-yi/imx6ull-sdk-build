@@ -18,7 +18,7 @@ repo 管理的 i.MX6ULL（正点原子 Alpha 板）嵌入式开发环境。
 imx6ull-sdk/
 ├── kernel/  uboot/  buildroot/  tools/   组件仓库（repo 管理）
 ├── build/   Makefile / Kconfig / 板级配置 / 本 README
-└── output/  构建产物（images/sdcard.img）
+└── output/  构建产物（images/board.img）
 ```
 
 ## 环境准备（新机器，一次性）
@@ -46,15 +46,15 @@ make menuconfig     # 可选：调整配置
 make                # 全量构建
 ```
 
-产物 `output/images/sdcard.img`（U-Boot 裸放 1KiB + vfat(zImage/dtb/boot.scr) + ext4 rootfs）：
+产物 `output/images/board.img`（U-Boot 裸放 1KiB + vfat(zImage/dtb/boot.scr) + ext4 rootfs）：
 
 ```bash
-sudo dd if=output/images/sdcard.img of=/dev/sdX bs=4M conv=fsync status=progress
+sudo dd if=output/images/board.img of=/dev/sdX bs=4M conv=fsync status=progress
 ```
 
 上板：TF 卡启动档位，串口 115200（UART1）。U-Boot 自动执行 boot.scr，免手动环境变量。
 
-同一镜像可烧 eMMC 启动：在 TF 起的系统里 `dd if=sdcard.img of=/dev/mmcblk1 bs=4M conv=fsync`
+同一镜像可烧 eMMC 启动：在 TF 起的系统里 `dd if=board.img of=/dev/mmcblk1 bs=4M conv=fsync`
 （实测 mmcblk 与 U-Boot 设备号恒等：TF=mmcblk0、eMMC=mmcblk1；boot.scr 按 mmcdev 拼 root，双介质通用），然后拨码切 eMMC 档。
 
 日常增量：内核/U-Boot 改动可只 `dd` 对应产物（uboot 段 `bs=512 seek=2`），或挂载卡分区替换 zImage/dtb。

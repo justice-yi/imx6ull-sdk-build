@@ -1,0 +1,14 @@
+# name, offset, size, ptype, fstype, label, source, note
+# offset/size 支持 M/G 后缀，必须 MiB 对齐；ptype=MBR 类型码
+# source 三种语义：文件名=把该文件写入分区；empty=脚本临时生成空 ext4(取 label 列做卷标)；
+#                -=只建分区表项、内容留空
+# MBR 限 4 个主分区：p4 为扩展容器(0x0f)，其后自动成为逻辑分区 p5~p8；
+# 每个逻辑分区数据区前留 1MiB 间隙给 EBR（体现为 offset 的 +1M 跳变）
+boot,     1M,    64M,   0x0c, vfat,     -,       boot.vfat,       zImage+dtb+boot.scr;唯一bootable
+env,      65M,   4M,    0x83, raw,      -,       -,               U-Boot env 双份冗余;烧写/OTA 永不触碰
+misc,     69M,   4M,    0x83, ext4,     misc,    empty,           杂项/产线数据
+extended, 73M,   6212M, 0x0f, raw,      -,       -,               扩展容器:p5~p8 逻辑分区住其内;尾=6285M≥data尾
+rootfs_a, 74M,   512M,  0x83, squashfs, -,       rootfs.squashfs, A 槽=p5(逻辑,前1M为EBR)
+rootfs_b, 587M,  512M,  0x83, squashfs, -,       rootfs.squashfs, B 槽=p6(暂同A,OTA写差异)
+overlay,  1100M, 64M,   0x83, ext4,     overlay, empty,           overlay=p7;upper+work;清空=恢复出厂
+data,     1165M, 5G,    0x83, ext4,     data,    empty,           data=p8;镜像带2G起步fs,首板只扩满

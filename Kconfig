@@ -36,7 +36,7 @@ config SDK_INSTALL_MODULES
 	bool "安装内核模块到 rootfs"
 	default y
 config SDK_MAKE_SDIMAGE
-	bool "生成 sdcard.img（genimage 合成）"
+	bool "生成 board.img（自研 mk-image.sh 按 layout.csv 合成）"
 	default y
 config SDK_JOBS
 	int "并行编译任务数"
