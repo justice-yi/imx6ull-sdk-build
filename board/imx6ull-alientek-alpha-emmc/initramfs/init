@@ -1,0 +1,44 @@
+#!/bin/sh
+# initramfs /init —— 两段启动组装器
+# 纪律（实测教训）：
+# ① busybox --install 必须第一句（所有命令软链靠它）
+# ② 函数必须定义在调用之前
+# ③ findfs/blkid 依赖 /proc——设备解析必须全部在搬走 /proc 之前完成
+/bin/busybox --install -s /bin
+
+rescue() {
+	echo "!!! Root assembly FAILED, dropping to initramfs rescue shell"
+	echo "!!! Check: cat /proc/cmdline; ls /dev/mmcblk*; try mount by hand"
+	exec sh
+}
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+
+# root= 由 boot.scr 按 slot 拼好传来（p5=A 槽 / p6=B 槽）
+root=$(cat /proc/cmdline | sed 's/.*root=\([^ ]*\).*/\1/')
+mount -t squashfs -o ro "$root" /ro || rescue
+
+OVR=$(findfs LABEL=overlay) || rescue
+DAT=$(findfs LABEL=data)
+MSC=$(findfs LABEL=misc)
+mount "$OVR" /rw || rescue
+mkdir -p /rw/root /rw/work
+
+mount -t overlay overlay \
+	-o lowerdir=/ro,upperdir=/rw/root,workdir=/rw/work /newroot || rescue
+
+# data/misc 先挂进新根（此时 /proc 还在，findfs 已在上面全部解析完）
+mkdir -p /newroot/data /newroot/misc /newroot/ro-base /newroot/rw
+mount "$DAT" /newroot/data
+mount "$MSC" /newroot/misc
+
+# 搬家：/rw 也要搬——否则 overlay 的 upper 层在运行系统里不可见不可管
+mount --move /rw   /newroot/rw
+mount --move /ro   /newroot/ro-base
+mount --move /proc /newroot/proc
+mount --move /sys  /newroot/sys
+mount --move /dev  /newroot/dev
+
+exec switch_root /newroot /sbin/init
